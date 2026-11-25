@@ -64,6 +64,8 @@ jobs:
           existentes=$(oci compute instance list --compartment-id "$T" --display-name portal-ramos \
             --query 'data[?"lifecycle-state"!=`TERMINATED` && "lifecycle-state"!=`TERMINATING`] | length(@)' \
             --raw-output)
+          # Sin instancias, Oracle devuelve una respuesta vacía: se cuenta como 0.
+          existentes=${existentes:-0}
           if [ "$existentes" != "0" ]; then
             echo "Ya existe un servidor portal-ramos."
             echo "resultado=existe" >> "$GITHUB_OUTPUT"
