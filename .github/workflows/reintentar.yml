@@ -1,11 +1,11 @@
 name: Reintentar servidor Oracle
 
-# Cada 10 minutos intenta crear el servidor "portal-ramos" (Always Free) en Oracle São Paulo.
+# Cada 15 minutos intenta crear el servidor "portal-ramos" (Always Free) en Oracle São Paulo.
 # Primero 2 núcleos / 12 GB; si no hay capacidad, 1 núcleo / 6 GB.
 # Cuando lo consigue: abre un issue (te llega un correo) y desactiva este flujo.
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -100,7 +100,7 @@ jobs:
               echo "Error inesperado:"; grep -v -i "ocid1" salida.txt | head -20
               exit 1
             fi
-            sleep 15
+            sleep 30
           done
           echo "resultado=sin-capacidad" >> "$GITHUB_OUTPUT"
 
