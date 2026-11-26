@@ -1,6 +1,6 @@
 # Reintentos del servidor Oracle
 
-Cada ~3 minutos, sin parar, GitHub Actions intenta crear el servidor `portal-ramos` (Always Free) en Oracle São Paulo.
+Cada ~3 minutos, sin parar, GitHub Actions intenta crear el servidor  (Always Free) en Oracle São Paulo.
 Cuando lo consigue abre un issue (llega un correo) y se desactiva solo.
 Cada ejecución dura ~5,5 horas y se relanza sola; además hay un cron cada hora como respaldo.
 
