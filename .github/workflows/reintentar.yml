@@ -1,11 +1,12 @@
 name: Reintentar servidor Oracle
 
-# Cada 15 minutos intenta crear el servidor "portal-ramos" (Always Free) en Oracle São Paulo.
+# Intenta crear el servidor "portal-ramos" (Always Free) en Oracle São Paulo cada ~3 minutos.
+# Cada ejecución dura ~5,5 horas y al terminar se vuelve a lanzar sola; el cron horario es respaldo.
 # Primero 2 núcleos / 12 GB; si no hay capacidad, 1 núcleo / 6 GB.
 # Cuando lo consigue: abre un issue (te llega un correo) y desactiva este flujo.
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -27,7 +28,7 @@ env:
 jobs:
   intentar:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
 
@@ -83,26 +84,43 @@ jobs:
               --ssh-authorized-keys-file llave-ssh.pub > salida.txt 2>&1
           }
 
-          for tam in "2 12" "1 6"; do
-            set -- $tam
-            if intentar "$1" "$2"; then
-              echo "CONSEGUIDO: $1 núcleo(s) / $2 GB"
-              echo "resultado=creado" >> "$GITHUB_OUTPUT"
-              echo "tamano=$1 núcleo(s) / $2 GB" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            if grep -qi "capacity" salida.txt; then
-              echo "Sin capacidad para $1/$2 GB."
-            elif grep -qi "TooManyRequests\|Too many requests" salida.txt; then
-              echo "Oracle pide ir más despacio; se reintenta en la próxima ejecución."
-              exit 0
-            else
-              echo "Error inesperado:"; grep -v -i "ocid1" salida.txt | head -20
-              exit 1
-            fi
-            sleep 30
+          fin=$(( $(date +%s) + 330*60 ))
+          ronda=0
+          errores=0
+          while [ "$(date +%s)" -lt "$fin" ]; do
+            ronda=$((ronda+1))
+            for tam in "2 12" "1 6"; do
+              set -- $tam
+              if intentar "$1" "$2"; then
+                echo "CONSEGUIDO: $1 núcleo(s) / $2 GB (ronda $ronda)"
+                echo "resultado=creado" >> "$GITHUB_OUTPUT"
+                echo "tamano=$1 núcleo(s) / $2 GB" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              if grep -qi "capacity" salida.txt; then
+                echo "$(date -u +%H:%M) ronda $ronda: sin capacidad para $1/$2 GB."
+                errores=0
+              elif grep -qi "TooManyRequests\|Too many requests" salida.txt; then
+                echo "$(date -u +%H:%M) Oracle pide ir más despacio; espero 10 minutos."
+                sleep 600
+                break
+              else
+                errores=$((errores+1))
+                echo "$(date -u +%H:%M) error inesperado ($errores seguidos):"; grep -v -i "ocid1" salida.txt | head -20
+                [ "$errores" -ge 5 ] && exit 1
+                break
+              fi
+              sleep 20
+            done
+            sleep $(( 160 + RANDOM % 40 ))
           done
           echo "resultado=sin-capacidad" >> "$GITHUB_OUTPUT"
+
+      - name: Relanzar
+        if: steps.crear.outputs.resultado == 'sin-capacidad'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run reintentar.yml --repo "$GITHUB_REPOSITORY"
 
       - name: Avisar y desactivar
         if: steps.crear.outputs.resultado == 'creado' || steps.crear.outputs.resultado == 'existe'
